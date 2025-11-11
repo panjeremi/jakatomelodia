@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jaka to melodia — teleturniej</title>
+  <style>
+    :root{
+      --bg:#0f1115; --surface:#131417; --card:#1b1c1f; --muted:#9aa0a6;
+      --primary:#8ab4f8; --on-primary:#061226; --accent:#b39ddb;
+      --radius:12px; --pad:14px;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#0b0c0f);color:#eceff1}
+    .app{max-width:1000px;margin:28px auto;padding:22px;}
+    header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;font-weight:700;color:var(--on-primary)}
+    h1{font-size:18px;margin:0}
+    p.lead{color:var(--muted);margin:0;font-size:13px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}
+    .btn{background:var(--card);border:0;padding:10px 12px;border-radius:10px;color:inherit;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,0.02);}
+    .btn.primary{background:linear-gradient(180deg,var(--primary),#5f9df0);color:var(--on-primary);font-weight:600}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04)}
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:18px}
+    .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:var(--pad);border-radius:var(--radius);}
+    .category{padding:12px;border-radius:10px;margin-bottom:10px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);display:flex;align-items:center;justify-content:space-between}
+    .category .meta{color:var(--muted);font-size:13px}
+    .song-list{display:grid;gap:8px}
+    .song{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.01)}
+    .song.played{opacity:0.55;text-decoration:line-through}
+    .song .title{flex:1}
+    .small{font-size:12px;color:var(--muted)}
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+    @media (max-width:760px){.layout{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="logo">JM</div>
+      <div>
+        <h1>Jaka to melodia — szkolny teleturniej</h1>
+        <p class="lead">Podłącz własne pliki MP3 w sekcji <code>categories</code> poniżej.</p>
+      </div>
+    </header>
+
+    <div class="controls">
+      <button id="randomBtn" class="btn primary">Losuj piosenkę</button>
+      <button id="pauseBtn" class="btn">⏸ Pauza</button>
+      <button id="resetBtn" class="btn ghost">Resetuj oznaczenia</button>
+      <label class="small" style="display:flex;align-items:center;gap:8px;margin-left:6px"><input id="autoMark" type="checkbox"> Oznacz automatycznie</label>
+    </div>
+
+    <div class="layout">
+      <aside class="panel">
+        <h3 style="margin-top:0;margin-bottom:8px">Kategorie</h3>
+        <div id="categories"></div>
+      </aside>
+
+      <main class="panel">
+        <h3 style="margin-top:0">Lista utworów</h3>
+        <div id="songList" class="song-list"></div>
+      </main>
+    </div>
+
+    <footer>
+      <div class="small">Dane zapisane lokalnie w przeglądarce.</div>
+    </footer>
+
+    <audio id="player" preload="auto"></audio>
+  </div>
+
+  <script>
+    const categories = [
+  {
+    name: 'Kto pierwszy ten lepszy',
+    files: [
+      { file: 'songs/kto/99 Luftballons - Nena.mp3', songsCount: 1 },
+      { file: 'songs/kto/Cheri Cheri Lady - Modern Talking.mp3', songsCount: 1 },
+      { file: 'songs/kto/Du hast - Rammstein.mp3', songsCount: 1 },
+      { file: 'songs/kto/Tausend Tattoos - Sido.mp3', songsCount: 1 },
+      { file: 'songs/kto/Wind Of Change - Scorpions.mp3', songsCount: 1 }
+    ]
+  },
+  {
+    name: 'Rap',
+    files: [
+      { file: 'songs/rap/Pyramiden - Sido.mp3', songsCount: 1 },
+      { file: 'songs/rap/Kein Problem - Apache 207.mp3', songsCount: 1 },
+      { file: 'songs/rap/2002 - Sido.mp3', songsCount: 1 },
+      { file: 'songs/rap/Alles gleich - Nina Chuba.mp3', songsCount: 1 },
+      { file: 'songs/rap/Roller - Apache 207.mp3', songsCount: 1 }
+    ]
+  },
+  {
+    name: 'Rock',
+    files: [
+      { file: 'songs/rock/Deutschland - Rammstein.mp3', songsCount: 1 },
+      { file: 'songs/rock/Monsoon - Tokio Hotel.mp3', songsCount: 1 },
+      { file: 'songs/rock/Rock You Like a Hurricane - 2015 - Remaster - Scorpions.mp3', songsCount: 1 },
+      { file: 'songs/rock/Tage wie diese - Die Toten Hosen.mp3', songsCount: 1 },
+    ]
+  },
+  {
+    name: 'Pop',
+    files: [
+      { file: 'songs/pop/194 Länder - Mark Forster.mp3', songsCount: 1 },
+      { file: 'songs/pop/Best of Us - WIER.mp3', songsCount: 1 },
+      { file: 'songs/pop/Drei Uhr Nachts - Mark Forster.mp3', songsCount: 1 },
+      { file: 'songs/pop/Lieblingsmensch - Namika.mp3', songsCount: 1 },
+    ]
+  },
+  {
+    name: 'Filmowa',
+    files: [
+      { file: 'songs/film/Cornfield Chase - Hans Zimmer.mp3', songsCount: 1 },
+      { file: 'songs/film/F1 - Hans Zimmer.mp3', songsCount: 1 },
+      { file: 'songs/film/He_s a Pirate - From _Pirates of the Caribbean_ The Curse Of the Black Pearl__Score - Hans Zimmer.mp3', songsCount: 1 },
+      { file: 'songs/film/Time - Hans Zimmer.mp3', songsCount: 1 },
+    ]
+  },
+  {
+    name: 'Kolędy',
+    files: [
+      { file: 'songs/koledy/Still_ Still_ Still_ Weil_s Kindlein Schlafen Will - Georg Goetsch.mp3', songsCount: 1 },
+      { file: 'songs/koledy/Stille Nacht_ heilige Nacht - Dresdner Kreuzchor.mp3', songsCount: 1 },
+    ]
+  },
+  {
+    name: 'Klasyczna',
+    files: [
+      { file: 'songs/klasyczna/Eine kleine Nachtmusik - Wolfgang Amadeus Mozart.mp3', songsCount: 1 },
+      { file: 'songs/klasyczna/Für Elise - Ludwig van Beethoven.mp3', songsCount: 1 },
+      { file: 'songs/klasyczna/Turkish March - Wolfgang Amadeus Mozart.mp3', songsCount: 1 },
+      { file: 'songs/klasyczna/Ode to Joy - Ludwig van Beethoven.mp3', songsCount: 1 },
+    ]
+  }
+];
+
+    const player = document.getElementById('player');
+    const categoriesEl = document.getElementById('categories');
+    const songListEl = document.getElementById('songList');
+    const randomBtn = document.getElementById('randomBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const autoMarkEl = document.getElementById('autoMark');
+
+    const STORAGE_KEY = 'jakaMelodia_played_v1';
+    let playedState = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(playedState)); }
+
+    const allSongs = [];
+    categories.forEach((cat, ci) => {
+      cat.files.forEach((f, fi) => {
+        const n = Math.max(1, Math.floor(f.songsCount || 1));
+        for(let i=1;i<=n;i++){
+          const id = `c${ci}f${fi}s${i}`;
+          allSongs.push({id, categoryIndex:ci, fileIndex:fi, indexInFile:i, label:`${cat.name}`, file:f.file});
+        }
+      });
+    });
+
+    function renderCategories(){
+      categoriesEl.innerHTML='';
+      categories.forEach((cat,ci)=>{
+        const total = cat.files.reduce((s,f)=>s+Math.max(1,(f.songsCount||1)),0);
+        const played = allSongs.filter(s=>s.categoryIndex===ci && playedState[s.id]).length;
+        const el = document.createElement('div'); el.className='category';
+        el.innerHTML = `<div><strong>${cat.name}</strong><div class="meta">${played}/${total} odtworzone</div></div>`;
+        categoriesEl.appendChild(el);
+      });
+    }
+
+    function renderSongList(){
+      songListEl.innerHTML='';
+      allSongs.forEach(song=>{
+        const div=document.createElement('div'); div.className='song';
+        if(playedState[song.id]) div.classList.add('played');
+        div.innerHTML = `
+          <div class="title">
+            <div style="font-weight:600">${song.label}</div>
+            <div class="small">Plik: <code>${song.file}</code></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn" data-action="play" data-id="${song.id}">▶</button>
+            <button class="btn" data-action="toggle" data-id="${song.id}">✓</button>
+          </div>
+        `;
+        songListEl.appendChild(div);
+      });
+
+      songListEl.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', e=>{
+          const action = btn.dataset.action;
+          const id = btn.dataset.id;
+          const song = allSongs.find(s=>s.id===id);
+          if(action==='play') playSong(song);
+          if(action==='toggle') togglePlayed(song);
+        });
+      });
+    }
+
+    function playSong(song){
+      if(!song) return;
+      player.src = song.file;
+      player.play().catch(()=>{});
+      if(autoMarkEl.checked){ markPlayed(song.id, true); }
+    }
+
+    function pauseSong(){
+      if(!player.paused){ player.pause(); }
+    }
+
+    function togglePlayed(song){ markPlayed(song.id, !playedState[song.id]); }
+
+    function markPlayed(id, v){
+      if(v) playedState[id]=true; else delete playedState[id];
+      save(); renderSongList(); renderCategories();
+    }
+
+    randomBtn.addEventListener('click', ()=>{
+      const remaining = allSongs.filter(s=>!playedState[s.id]);
+      const pool = remaining.length?remaining:allSongs;
+      const pick = pool[Math.floor(Math.random()*pool.length)];
+      playSong(pick);
+    });
+
+    pauseBtn.addEventListener('click', ()=>{ pauseSong(); });
+
+    resetBtn.addEventListener('click', ()=>{
+      if(confirm('Zresetować oznaczenia?')){
+        playedState = {}; save(); renderSongList(); renderCategories();
+      }
+    });
+
+    renderCategories();
+    renderSongList();
+  </script>
+</body>
+</html>
